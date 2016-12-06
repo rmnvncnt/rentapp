@@ -1,1 +1,1 @@
-web: python3 rentapp/rentapp.py
+web: python3 rentapp.py
