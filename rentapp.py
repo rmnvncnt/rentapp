@@ -90,6 +90,7 @@ def scraping():
     except:
         return redirect(url_for('index'))
 
+    # crawler = PapCrawler(url)
     # get data from crawl
     session['item'] = crawler.__dict__
     return redirect(url_for('validation'))

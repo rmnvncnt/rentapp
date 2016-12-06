@@ -113,7 +113,7 @@ def get_year(lat_long, subarea, area, method='exact'):
             result['method'] = 'distance'
 
     else:
-        year = median_year.ix[median_year['area'] == area].values
+        year = df_median_year.ix[df_median_year['area'] == area].values
         assert len(year) == 1
         result['year'] = int(year[0][1])
         result['method'] = 'area_median'
