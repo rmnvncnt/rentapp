@@ -2,9 +2,7 @@
 {% extends "base.html" %}
 
 {% block url_form %}
-<p> Veuillez indiquer ci-dessous l'adresse URL de l'annonce consultée </p>
-<p> NB : cette application fonctionne uniquement avec les annonces de
-www.pap.fr pour le moment.</p>
+<p>Veuillez indiquer çi-dessous l'adresse URL d'une annonce immobilière :</p>
  <form action="/scraping" method="POST">
  {{ urlform.hidden_tag() }}
   <p>{{ urlform.url }}<input type=submit value="C'est parti!"></p>
@@ -13,7 +11,7 @@ www.pap.fr pour le moment.</p>
 
 {% block attr_form %}
 <p> Voici les informations que nous avons pu collecter sur cette annonce. </p>
-<p> Si une information vous semple erronée, vous pouvez la corriger. </p>
+<p> Si une information vous semble erronée, vous pouvez la corriger ici : </p>
  <form action="/validation" method="POST">
   {{ form.hidden_tag() }}
   <table>
@@ -43,7 +41,6 @@ www.pap.fr pour le moment.</p>
 {% endblock %}
 
 {% block results %}
-<p> Les loyers de référence valent pour l'année 2016 : </p>
  <table>
    <tr>
     <td>Loyer proposé</td>
