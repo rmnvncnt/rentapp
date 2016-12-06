@@ -5,8 +5,11 @@
 <p>Veuillez indiquer çi-dessous l'adresse URL d'une annonce immobilière :</p>
  <form action="/scraping" method="POST">
  {{ urlform.hidden_tag() }}
-  <p>{{ urlform.url }}<input type=submit value="C'est parti!"></p>
+  <p>{{ urlform.url }}<input type=submit value="C'est parti!">*</p>
  </form>
+<div>
+ <p>*L'opération peut prendre plusieurs secondes dans certains cas. Cette application ne fonctionne pour l'instant qu'avec les annonces de biens locatifs parisiens (75) publiées sur www.pap.fr.</p>
+</div>
 {% endblock %}
 
 {% block attr_form %}
