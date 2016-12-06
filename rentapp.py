@@ -82,15 +82,14 @@ def scraping():
     url = request.form['url']
     
     # scraping
-    
-    if 'pap' in url:
-        crawler = PapCrawler(url)
-    else:
-        raise Exception()
-    '''
+    try:
+        if 'pap' in url:
+            crawler = PapCrawler(url)
+        else:
+            raise Exception()
     except:
         return redirect(url_for('index'))
-    '''
+    
     # get data from crawl
     session['item'] = crawler.__dict__
     return redirect(url_for('validation'))
@@ -146,4 +145,5 @@ def results():
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port)
