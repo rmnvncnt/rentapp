@@ -4,17 +4,18 @@
 {% block url_form %}
 <p>Veuillez indiquer çi-dessous l'adresse URL d'une annonce immobilière :</p>
  <form action="/scraping" method="POST">
- {{ urlform.hidden_tag() }}
-  <p>{{ urlform.url }}<input type=submit value="C'est parti!">*</p>
+  <div class="field">
+  {{ urlform.hidden_tag() }}
+  {{ urlform.url }}<p><input type=submit value="C'est parti!"></p>
+  </div>
  </form>
 <div>
- <p>*L'opération peut prendre plusieurs secondes dans certains cas. Cette application ne fonctionne pour l'instant qu'avec les annonces de biens locatifs parisiens (75) publiées sur www.pap.fr.</p>
+ <p>L'opération peut prendre plusieurs secondes dans certains cas. Cette application ne fonctionne pour l'instant qu'avec les annonces de biens locatifs parisiens (75) publiées sur www.pap.fr.</p>
 </div>
 {% endblock %}
 
 {% block attr_form %}
-<p> Voici les informations que nous avons pu collecter sur cette annonce. </p>
-<p> Si une information vous semble erronée, vous pouvez la corriger ici : </p>
+<p> Voici les informations que nous avons pu collecter sur cette annonce. Si une information vous semble erronée, vous pouvez la corriger ici : </p>
  <form action="/validation" method="POST">
   {{ form.hidden_tag() }}
   <table>
@@ -39,7 +40,7 @@
    	<td>{{ render_field(form.subarea) }}</td>
    </tr>
   </table>
-  <input type=submit value="Je valide"></p>
+  <p><input type=submit value="Je valide"></p>
  </form>
 {% endblock %}
 
@@ -61,8 +62,8 @@
     <td>Loyer maximum</td>
     <td>{{ refs['refmaj'] }}</td>
    </tr>
-  </table>
+ </table>
  <form action="/" method="POST">
-  <input type=submit value="Un autre?"></p>
+ <p><input type=submit value="Un autre?"></p> 
  </form>
 {% endblock %}

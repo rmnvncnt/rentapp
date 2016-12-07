@@ -80,7 +80,7 @@ def index():
 def scraping():
     # get url
     url = request.form['url']
-    
+
     # scraping
     try:
         if 'pap' in url:
