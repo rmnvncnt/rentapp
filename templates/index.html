@@ -45,24 +45,9 @@
 {% endblock %}
 
 {% block results %}
- <table>
-   <tr>
-    <td>Loyer proposé</td>
-    <td>{{ refs['price'] }}</td>
-   </tr>
-   <tr>
-    <td>Loyer de référence</td>
-    <td>{{ refs['ref'] }}</td>
-   </tr>
-   <tr>
-    <td>Loyer minimum</td>
-    <td>{{ refs['refmin'] }}</td>
-   </tr>
-   <tr>
-    <td>Loyer maximum</td>
-    <td>{{ refs['refmaj'] }}</td>
-   </tr>
- </table>
+
+ {{ graph | safe }}
+
  <form action="/" method="POST">
  <p><input type=submit value="Un autre?"></p> 
  </form>

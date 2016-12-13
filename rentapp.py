@@ -3,6 +3,7 @@
 import os, sqlite3
 from crawlers_beta import PapCrawler
 from utils.inside_quarters import get_options, get_choice, get_refs
+from utils.graphs import make_graph
 from flask import Flask, request, g, render_template, redirect, url_for, session
 from flask_wtf import FlaskForm
 from wtforms.validators import DataRequired
@@ -136,13 +137,19 @@ def validation():
 
 @app.route('/results', methods=['GET', 'POST'])
 def results():
+    # get item references
     item = session.get('item', None)
     refs = get_refs(item)
     for key, value in refs.items():
-        refs[key] = round(float(item['surface']) * value, 1)
-    refs['price'] = item['price']
+        refs[key] = int(float(item['surface']) * value)
+    refs['price'] = int(float(item['price']))
+    # build graph
+    graph = make_graph(refs)
     display = {'url': False, 'fill' : False, 'valid' : True}
-    return render_template('index.html', display=display, refs=refs)
+    return render_template('index.html', 
+                           display=display, 
+                           refs=refs, 
+                           graph=graph)
 
 
 if __name__ == '__main__':
