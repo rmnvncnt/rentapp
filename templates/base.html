@@ -2,17 +2,20 @@
 <link rel=stylesheet type=text/css href="{{ url_for('static', filename='style.css') }}">
 <html>
   <head>
-    <title>RentApp</title>
+    <title>Loyers Parisiens</title>
   </head>
   <body>
-    <h1>RentApp</h1>
-    {% if display['url'] %}
+    <h1>Loyers Parisiens</h1>
+    {% if display == 'url' %}
     {% block url_form %}{% endblock %}
     {% endif %}
-    {% if display['fill'] %}
+    {% if display == 'pred' %}
+    {% block pred_form %}{% endblock %}
+    {% endif %}
+    {% if display == 'fill' %}
     {% block attr_form %}{% endblock %}
     {% endif %}
-    {% if display['valid'] %}
+    {% if display == 'valid' %}
     {% block results %}{% endblock %}
     {% endif %}
   </body>

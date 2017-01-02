@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 
-import re, datetime, requests
+import re, datetime, requests, string
 from lxml import html
 from unidecode import unidecode
-from utils.inside_quarters import get_quarter, fuzz_quarter, \
-get_year
+from utils.tools import get_quarter, fuzz_quarter, get_year, fuzz_word
+from utils.charges import make_prediction
 
 # UTILS
 
@@ -16,6 +16,10 @@ def remove_spaces(text):
 
 def text_to_unicode(text):
     return unidecode(text)
+
+def remove_punctuation(text):
+    translator = str.maketrans({key: ' ' for key in string.punctuation})
+    return text.translate(translator)
 
 # ERRORS
 
@@ -59,8 +63,13 @@ class PapCrawler(object):
         self.get_surface()
         self.get_rooms()
         self.get_year()
-        self.get_charges()
         self.get_price()
+        self.get_heating()
+        self.get_energy()
+        self.get_lift()
+        self.get_gardien()
+        self.get_internet()
+        self.get_charges()
         self.close()
 
     def get_html(self):
@@ -75,6 +84,7 @@ class PapCrawler(object):
         self.html = html.fromstring(self.response.text)
 
     def get_title(self):
+        '''Advert Title'''
         selector = '//span[@class="title"]/text()'
         title = self.html.xpath(selector)
         title = ''.join(title)
@@ -83,6 +93,7 @@ class PapCrawler(object):
         self.title = title
 
     def get_ref(self):
+        '''Advert reference number/code'''
         selector = '//p[@class="date"]/text()'
         raw_ref = str(self.html.xpath(selector)[0])
         regex = r'(?<=: ).*?(?= / )'
@@ -92,16 +103,20 @@ class PapCrawler(object):
         self.ref = ref
 
     def get_description(self):
+        '''Appartment description'''
         selector = '//p[@class="item-description"]/text()'
         raw_description = self.html.xpath(selector)
         description = ''.join(raw_description)
         assert type(description) == str
         description = remove_spaces(description)
         description = text_to_unicode(description)
+        description = remove_punctuation(description)
         self.description = description
 
     def get_coord(self):
+        '''Appartment geo coordinates'''
         try:
+            # extract the data from page
             selector = '//div[@class="map-annonce-adresse"]/@data-mappy'
             raw_coord = str(self.html.xpath(selector)[0])
             regex = r"[-+]?\d*\.\d+|\d+"
@@ -112,71 +127,131 @@ class PapCrawler(object):
             self.coord = clean_coord
             self.coord_method = 'exact'
         except:
-            # if no coord try fuzzy matching later
             self.coord = None
             self.coord_method = 'no_data'
 
     def get_furnitures(self):
+        '''Determine whether the appartment is furnished of not'''
         assert type(self.title) == str
         if 'eubl' in self.title:
-            self.furnitures = True
+            self.furnitures = 1
         else:
-            self.furnitures = False
+            self.furnitures = 0
 
     def get_area(self):
+        '''Get the appartment area (arrondissement)'''
         selector = '//div[@class="item-geoloc"]/h2/text()'
         raw_area = self.html.xpath(selector)[0]
         self.area = int(re.findall('\d+', raw_area)[0])
         assert type(self.area) == int
 
     def get_subarea(self):
+        '''Infer appartment's subarea (quartier)'''
         if self.coord:
+            # infer from coordinates
             result = get_quarter(self.coord)
             assert type(result) == dict
             self.subarea = result['quarter']
-            # self.area = int(result['area'])
         else:
-            self.subarea = fuzz_quarter(self.description) # try fuzzy matching
+            # if no coordinates, tries to infer subarea
+            # from the description
+            self.subarea = fuzz_quarter(self.description) 
 
     def get_details(self):
+        '''Get details about the appartment'''
         selector = '//ul[@class="item-summary"]//li'
         details = self.html.xpath(selector)
         self.details = details
 
     def get_surface(self):
+        '''Get the appartment's surface'''
         for detail in self.details:
             text = detail.xpath('strong/text()')
             if 'Su' in detail.text:
                 surface = text[0]
-        surface = get_digits(surface, float)
-        assert type(surface) == float
+        surface = get_digits(surface, int)
+        assert type(surface) == int
         self.surface = surface
 
     def get_rooms(self):
+        '''Get the number of rooms'''
+        rooms = 0
+        bedrooms = 0
         for detail in self.details:
             text = detail.xpath('strong/text()')
             if 'Pi' in detail.text:
-                rooms = text[0]
-        rooms = get_digits(rooms, int)
+                rooms = get_digits(text[0], int)
+            if 'Ch' in detail.text:
+                bedrooms = get_digits(text[0], int)
+        # rooms and bedrooms make no difference
+        # for the algorithm.
+        rooms = rooms + bedrooms
         assert type(rooms) == int
         self.rooms = rooms
 
     def get_year(self):
+        '''Infer the construction year'''
         results = get_year(self.coord, self.subarea, self.area)
         self.year_method = results['method']
         self.year = results['year']
 
-    def get_charges(self):
-        # prediction here
-        pass
-
     def get_price(self):
+        '''Get the price of the appartment'''
         selector = '//span[@class="price"]/strong/text()'
         raw_price = self.html.xpath(selector)[0]
-        price = get_digits(raw_price, float)
-        assert type(price) == float
+        price = get_digits(raw_price, int)
+        assert type(price) == int
         self.price = price # minus charges
-        self.charges_included = True
+
+    def get_heating(self):
+        words = 'collectif'
+        result = fuzz_word(self.description, words)
+        if result:
+            self.heating = 'collective'
+        else:
+            # default value
+            self.heating = 'individuel'
+
+    def get_energy(self):
+        words = ['fuel', 'gaz', 'electricite']
+        energy = {}
+        for w in words:
+            energy[w] = fuzz_word(self.description, w)
+        self.energy = energy
+
+    def get_lift(self):
+        words = 'sans ascenseur'
+        result = fuzz_word(self.description, words)
+        if result:
+            self.lift = 0
+        else:
+            words = 'ascenseur'
+            result = fuzz_word(self.description, words)
+            if result:
+                self.lift = 1
+            else:
+                self.lift = 0
+
+    def get_gardien(self):
+        words = 'gardien'
+        result = fuzz_word(self.description, words)
+        if result:
+            self.gardien = 1
+        else:
+            # default value
+            self.gardien = 0
+
+    def get_internet(self):
+        words = 'internet'
+        result = fuzz_word(self.description, words)
+        if result:
+            self.internet = 1
+        else:
+            # default value
+            self.internet = 0
+
+    def get_charges(self):
+        self.charges = make_prediction(self.__dict__)
 
     def close(self):
         del(self.html, self.response, 
