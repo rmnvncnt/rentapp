@@ -1,8 +1,8 @@
 from crawlers_beta import PapCrawler, SeLogerCrawler
 
 def run_tests():
-    pap_test()
-    # seloger_test()
+    # pap_test()
+    seloger_test()
 
 def pap_test():
     
@@ -16,7 +16,8 @@ def pap_test():
 def seloger_test():
     
     url = (
-        'http://www.seloger.com/annonces/locations/appartement/paris-6eme-75/odeon/114076879.htm'
+        'http://www.seloger.com/annonces/locations/appartement/'
+        'paris-14eme-75/raspail-montparnasse/116007725.htm?cp=75&idtt=1&idtypebien=1&tri=initial'
     )
 
     crawler = SeLogerCrawler(url)
@@ -24,7 +25,6 @@ def seloger_test():
     print (data)
 
     print ('scraping_time : ', data['scraping_time'])
-    print ('status : ', data['status'] )
 
 if __name__ == '__main__':
     run_tests()

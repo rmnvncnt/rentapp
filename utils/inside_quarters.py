@@ -13,10 +13,10 @@ from operator import itemgetter
 
 # file path for databases and references
 file_path = os.path.dirname(os.path.abspath(__file__))
-data_path = os.path.join(file_path, 'tables/quarters.csv')
-refs_path = os.path.join(file_path, 'tables/refs_beta.csv')
-constr_path = os.path.join(file_path, 'tables/construction_year.csv')
-median_path = os.path.join(file_path, 'tables/median_an_constr.csv')
+data_path = os.path.join(file_path, 'quarters.csv')
+refs_path = os.path.join(file_path, 'refs_beta.csv')
+constr_path = os.path.join(file_path, 'construction_year.csv')
+median_path = os.path.join(file_path, 'median_an_constr.csv')
 
 def get_polygons(coord):
     return mplPath.Path([(coord[0], coord[1]) for coord in eval(coord)])
@@ -24,9 +24,9 @@ def get_polygons(coord):
 # open data bases and references
 quarter_coordinates = pd.read_csv(data_path)
 quarter_coordinates["polygon"] = quarter_coordinates["coordinates"].apply(get_polygons, 0)
-df_year = pd.read_csv(constr_path)
-df_refs = pd.read_csv(refs_path)
-df_median_year = pd.read_csv(median_path)
+const_year = pd.read_csv(data_path)
+refs = pd.read_csv(refs_path)
+median_year = pd.read_csv(median_path)
 
 
 def get_quarter(lat_long):
@@ -57,12 +57,21 @@ def get_choice(options, area):
 def get_refs(item, year=2016):
     ''' return refs for given item
     '''
-    refs = df_refs.ix[(df_refs['nameZone'] == item['subarea']) &
-                      (df_refs['type'] == item['furnitures']) &
-                      (df_refs['piece'] == item['rooms']) &
-                      (df_refs['min_year'] < item['year']) &
-                      (df_refs['max_year'] > item['year']) &
-                      (df_refs['annee'] == year)].squeeze()
+    refs = pd.read_csv(refs_path)
+    '''
+    refs = refs[refs['min_year'] < item['year']]
+    refs = refs[refs['max_year'] > item['year']]
+    refs = refs[refs['nameZone'] == item['subarea']]
+    refs = refs[refs['type'] == item['furnitures']]
+    refs = refs[refs['piece'] == item['rooms']]
+    refs = refs[refs['annee'] == year].squeeze()
+    '''
+    refs = refs.ix[(refs['nameZone'] == item['subarea']) &
+                   (refs['type'] == item['furnitures']) &
+                   (refs['piece'] == item['rooms']) &
+                   (refs['min_year'] < item['year']) &
+                   (refs['max_year'] > item['year']) &
+                   (refs['annee'] == year)].squeeze()
 
     return refs[['ref', 'refmin', 'refmaj']].to_dict()
 
@@ -75,7 +84,8 @@ def fuzz_quarter(desc, cutoff=85):
         is found, return None.
     '''
     try:
-        names = df_refs['nameZone'].tolist()
+        df = pd.read_csv(refs_path)
+        names = df['nameZone'].tolist()
         min_len = min([len(n) for n in names])
         words = [w for w in desc.split() if len(w) >= min_len]
         matches = [process.extractOne(w, names, score_cutoff=cutoff) 
@@ -86,30 +96,7 @@ def fuzz_quarter(desc, cutoff=85):
         return 'Inconnu'
 
 
-def fuzz_word(desc, item, cutoff=95):
-    ''' find word / pair of words in the
-        description of the add using fuzzy matching
-        algorithm (see above). Less specific than
-        quarter search. Cuttoff default set high
-        because we want to be pretty conservative
-        with this one.
-    '''
-
-    def find_ngrams(input_list, n):
-        return zip(*[input_list[i:] for i in range(n)])
-
-    n_words = len(item.split())
-    ngrams = list(find_ngrams(desc.split(), n_words))
-    match = process.extractOne(item, ngrams, score_cutoff=cutoff)
-    
-    if match:
-        return True
-    else:
-        return False
-
-
-
-def get_const_year(lat_long, subarea, area, method='exact'):
+def get_year(lat_long, subarea, area, method='exact'):
     ''' Get the year of construction from different methods :
     computes the shortest distance to a building with known
     construction year (1) or from the median construction
@@ -121,7 +108,7 @@ def get_const_year(lat_long, subarea, area, method='exact'):
               'method' : None}
 
     if lat_long and (subarea != 'Inconnu'):
-        subcoord = df_year[df_year['subarea'] == subarea].copy()
+        subcoord = const_year[const_year['subarea'] == subarea].copy()
         func = lambda x: great_circle((x['latitude'], x['longitude']), 
                                       (lat_long[0], lat_long[1])).meters
         subcoord['distance'] = subcoord.apply(func, axis=1)
@@ -136,7 +123,7 @@ def get_const_year(lat_long, subarea, area, method='exact'):
             result['method'] = 'distance'
 
     else:
-        year = df_median_year.ix[df_median_year['area'] == area].values
+        year = median_year.ix[median_year['area'] == area].values
         assert len(year) == 1
         result['year'] = int(year[0][1])
         result['method'] = 'area_median'

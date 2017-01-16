@@ -3,13 +3,13 @@
 import re, datetime, requests, string
 from lxml import html
 from unidecode import unidecode
-from utils.tools import get_quarter, fuzz_quarter, get_year, fuzz_word
+from utils.tools import get_quarter, fuzz_quarter, get_const_year, fuzz_word
 from utils.charges import make_prediction
 
 # UTILS
 
 def get_digits(text, dtype):
-    return dtype(''.join(re.findall('\d+', text)))
+    return dtype(''.join(re.findall('(\d*\.?\d+)', text)))
 
 def remove_spaces(text):
     return re.sub(r'[\n\r\t]', ' ', text)
@@ -191,7 +191,7 @@ class PapCrawler(object):
 
     def get_year(self):
         '''Infer the construction year'''
-        results = get_year(self.coord, self.subarea, self.area)
+        results = get_const_year(self.coord, self.subarea, self.area)
         self.year_method = results['method']
         self.year = results['year']
 
@@ -276,8 +276,15 @@ class SeLogerCrawler(object):
         self.get_details()
         self.get_furnitures()
         self.get_subarea()
-        self.get_price()
+        #
+        self.get_rooms()
+        self.get_heating()
+        self.get_lift()
+        self.get_gardien()
+        self.get_internet()
+        #
         self.get_charges()
+        self.get_price()
         self.get_surface()
         self.get_year()
         self.close()
@@ -346,14 +353,90 @@ class SeLogerCrawler(object):
     def get_furnitures(self):
         for detail in self.details:
             if ' Meubl' in detail:
-                self.furnitures = True
+                self.furnitures = 1
             else:
-                self.furnitures = False
+                self.furnitures = 0
+
+    def get_rooms(self):
+        try:
+            for detail in self.details:
+                if 'Pièces' in detail:
+                    rooms = get_digits(detail, int)
+            self.rooms = rooms
+        except:
+            self.rooms = None
+
+    def get_heating(self):
+        # default case
+        self.heating = 'individuel'
+        self.energy = {
+            'electricite': 1,
+            'gaz': 0,
+            'fuel': 0
+        }
+
+        # but if infos provided
+        for detail in self.details:
+            if 'Chauffage' in detail:
+                if 'central' in detail:
+                    self.heating = 'collective'
+                else:
+                    self.heating = 'individuel'
+                if 'gaz' in detail:
+                    self.energy['gaz'] = 1
+                elif 'fuel' in detail:
+                    self.energy['fuel'] = 1
+                else:
+                    self.energy['electricite'] = 1
+
+        assert type(self.heating) == str
+        assert type(self.energy) == dict
+
+    def get_lift(self):
+        # default case
+        self.lift = 0
+
+        # but if infos
+        for detail in self.details:
+            if 'Ascenseur' in detail:
+                self.lift = 1
+
+    def get_gardien(self):
+        # default case
+        self.gardien = 0
+
+        # but if infos
+        for detail in self.details:
+            if 'Gardien' in detail:
+                self.gardien = 1
+
+    def get_internet(self):
+        selector = '//p[@class="description"]/text()'
+        desc = self.html.xpath(selector)[0]
+        words = 'internet'
+        result = fuzz_word(desc, words)
+        if result:
+            self.internet = 1
+        else:
+            # default value
+            self.internet = 0        
 
     def get_subarea(self):
-        subarea = get_quarter(self.coord)
-        assert type(subarea) == str
-        self.subarea = subarea
+        result = get_quarter(self.coord)
+        self.subarea = result['quarter']
+        self.area = int(result['area'])
+        assert type(result['quarter']) == str
+
+    def get_charges(self):
+        charges = None
+        for detail in self.details:
+            if 'Charges' in detail:
+                charges = get_digits(detail, float)
+        if not charges:
+            # insert prediction
+            # charges = 1.0
+            pass
+        self.charges = charges
 
     def get_price(self):
         selector = '//span[@id="price"]'
@@ -362,28 +445,16 @@ class SeLogerCrawler(object):
         
         text = raw_price.xpath('//sup')[0].text # check for charges included
         if 'CC' in text:
-            self.charges_included = True
-        else:
-            self.charges_included = False
-        assert type(price) == float
-        assert type(self.charges_included) == bool
-        self.price = price
+            if self.charges:
+                price = price - self.charges
 
-    def get_charges(self):
-        charges = None
-        for detail in self.details:
-            if 'Charges' in detail:
-                charges = get_digits(detail, float)
-        if not charges:
-            if not self.charges_included:
-                # insert prediction
-                charges = 1.0
-        assert type(charges) == float
-        self.charges = charges
+        assert type(price) == float
+        self.price = price
 
     def get_surface(self):
         for detail in self.details:
             if 'Surf' in detail:
+                detail = detail.replace(',', '.')
                 surface = get_digits(detail, float)
         assert type(surface) == float
         self.surface = surface
@@ -396,8 +467,8 @@ class SeLogerCrawler(object):
                 self.year_method = 'details'
                 self.year = year
         if not year:
-            results = get_year(self.coord, self.subarea, 
-                               method=self.coord_method)
+            results = get_const_year(self.coord, self.subarea, 
+                                     self.area, method=self.coord_method)
             self.year_method = results['method']
             self.year = results['year']
         assert type(self.year) == int
